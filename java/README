@@ -1,2 +1,17 @@
-Java sources: https://github.com/awslabs/amazon-kinesis-client
+The Java sources can be downloaded at https://github.com/awslabs/amazon-kinesis-client
 
+The Amazon Kinesis Client jar file and its dependencies bundled with this R package
+were compiled via the below bash script:
+
+```
+export VERSION=1.7.6
+
+wget -q https://github.com/awslabs/amazon-kinesis-client/archive/v$VERSION.tar.gz
+tar xzf *.tar.gz
+rm *.tar.gz
+
+mvn clean package -DskipTests -Dmaven.test.skip=true -Dgpg.skip=true
+mvn dependency:copy-dependencies
+cp target/dependency/*.jar ../
+cp target/*.jar ../
+```

@@ -1,6 +1,6 @@
 # AWR.Kinesis: An Amazon Kinesis Client Library for R
 
-This R package is a wrapper around and an interface to the Amazon Kinesis Client Library (KCL) [MultiLangDaemon](https://github.com/awslabs/amazon-kinesis-client/blob/master/src/main/java/com/amazonaws/services/kinesis/multilang/package-info.java), which is part of the [Amazon KCL for Java](https://github.com/awslabs/amazon-kinesis-client). This Java-based daemon takes care of communicating with the Kinesis API (to retrieve status of streams, shards and eg to retrieve records from those) and also handles a bunch of other useful things, like checkpointing using Amazon DynamoDB -- so that the R developer can actually concentrate on the stream processing algorithm.
+This R package is a wrapper around and an interface to the Amazon Kinesis Client Library (KCL) [MultiLangDaemon](https://github.com/awslabs/amazon-kinesis-client/blob/v1.x/src/main/java/com/amazonaws/services/kinesis/multilang/package-info.java), which is part of the [Amazon KCL for Java](https://github.com/awslabs/amazon-kinesis-client). This Java-based daemon takes care of communicating with the Kinesis API (to retrieve status of streams, shards and eg to retrieve records from those) and also handles a bunch of other useful things, like checkpointing using Amazon DynamoDB -- so that the R developer can actually concentrate on the stream processing algorithm.
 
 ## Writing a record processor application
 
@@ -8,26 +8,27 @@ A minimal stream processing script written in R looks something like:
 
 ```r
 AWR.Kinesis::kinesis_consumer(processRecords = function(records) {
-	flog.info(jsonlite::toJSON(records)))
+    log_info(jsonlite::toJSON(records))
 }
 ```
 
-This R script, executed by the MultiLangDaemon, reads records from the Kinesis stream and logs those as JSON in the application log, which by default is a temporary file. Note: it's important not to write anything to `stdout`, as `stdin` and `stdout` is used by the package internals to communicate with the MultiLangDaemon. But as the package is already depends on and integrates the `futile.logger` R package, it's very convenient to use the `flog` functions for app logging with various log levels.
+This R script, executed by the MultiLangDaemon, reads records from the Kinesis stream and logs those as JSON in the application log, which by default is a temporary file. Note: it's important not to write anything to `stdout`, as `stdin` and `stdout` is used by the package internals to communicate with the MultiLangDaemon. But as the package is already imports and integrates the `logger` R package, it's very convenient to use the `log` functions for app logging with various log levels.
 
 Let's see a more complex stream processing app:
 
 ```r
 AWR.Kinesis::kinesis_consumer(
         initialize     = function()
-            flog.info('Loading some data'),
+            log_info('Loading some data'),
         processRecords = function(records)
-            flog.info('Received some records from Kinesis'),
+            log_info('Received some records from Kinesis'),
         shutdown       = function()
-            flog.info('Bye'),
-        updater        = list(list(1, function()
-            flog.info('Updating some data every minute')),
+            log_info('Bye'),
+        updater        = list(
+            list(1, function()
+                log_info('Updating some data every minute')),
             list(1/60, function()
-                flog.info('This is a high frequency updater call'))))
+                log_info('This is a high frequency updater call'))))
 ```
 
 This application takes multiple (anonymous) functions. Besides the `processRecords` argument, which we used in the above application to define a function to process the records, we also have an init, a shutdown and two updater functions. The `initialize` and `shutdown` calls are trivial: these functions are run when the applications starts and when it stops, eg when there are no further records to be read from a shard due to a shard merge operation.
@@ -41,7 +42,7 @@ So this application will log
 * `Updating some data every minute` around once a minute,
 * `Bye` when the app stops.
 
-Use the `initialize` function to load/cache some data for the `processRecords` calls, then use the `updater` functions to refresh your cached data on a regular basis. To store credentials to databases, APIs etc, use the [AWR.KMS](https://github.com/cardcorp/AWR.KMS) R package to interact with the AWS Key Management Service.
+Use the `initialize` function to load/cache some data for the `processRecords` calls, then use the `updater` functions to refresh your cached data on a regular basis. To store credentials to databases, APIs etc, use the [botor](https://github.com/daroczig/botor) R package to interact with the AWS Key Management Service.
 
 ## Executing the record processor application
 
@@ -72,7 +73,7 @@ Please note that you need AWS access to both Kinesis and DynamoDB to get the abo
 ## Further reading
 
 Again, this is just a wrapper around the MultiLangDaemon, so the related documentation will be extremely useful if you get stuck:
-* [AWS introduction into Kinesis](http://docs.aws.amazon.com/streams/latest/dev/introduction.html)
-* [AWS docs on using the KCL](http://docs.aws.amazon.com/streams/latest/dev/developing-consumers-with-kcl.html)
+* [AWS introduction into Kinesis](https://docs.aws.amazon.com/streams/latest/dev/introduction.html)
+* [AWS docs on using the KCL](https://docs.aws.amazon.com/streams/latest/dev/developing-consumers-with-kcl.html)
 * [Java Kinesis Client](https://github.com/awslabs/amazon-kinesis-client)
 * [Python Kinesis Client](https://github.com/awslabs/amazon-kinesis-client-python)

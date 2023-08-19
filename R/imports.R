@@ -2,7 +2,7 @@
 #'
 #' Please find more details in the \code{README.md} file.
 #' @docType package
-#' @importFrom futile.logger flog.trace flog.debug flog.info flog.appender appender.file flog.layout
+#' @importFrom logger log_trace log_debug log_info log_appender log_formatter formatter_paste appender_file log_layout
 #' @importFrom jsonlite fromJSON toJSON base64_dec base64_enc unbox
 #' @importFrom rJava .jnew J .jbyte
 #' @importFrom utils assignInMyNamespace
@@ -10,21 +10,14 @@
 #' @name AWR.Kinesis-package
 NULL
 
-## init for future update in below .onLoad hook
+## connection to be opened in the first call to read_line_from_stdin
 stdincon <- NULL
-
-.onLoad <- function(libname, pkgname) {
-
-    ## load stdin only once per R session to avoid the memory leak with
-    ## always re-opening the connection
-    assignInMyNamespace('stdincon',
-                        suppressWarnings(file('stdin', open = 'r', blocking = TRUE)))
-
-}
 
 .onUnload <- function(libpath) {
 
     ## close opened connection
-    close(stdincon)
+    if (!is.null(stdincon)) {
+        close(stdincon)
+    }
 
 }

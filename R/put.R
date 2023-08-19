@@ -4,7 +4,7 @@
 #' @param data data blog (string)
 #' @param partitionKey determines which shard in the stream the data record is assigned to, eg username, stock symbol etc (string)
 #' @export
-#' @references \url{http://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/kinesis/model/PutRecordRequest.html}
+#' @references \url{https://docs.aws.amazon.com/AWSJavaSDK/latest/javadoc/com/amazonaws/services/kinesis/model/PutRecordRequest.html}
 #' @examples \dontrun{
 #' df <- mtcars[1, ]
 #' str(kinesis_put_record('test-AWR', data = jsonlite::toJSON(df), partitionKey = row.names(df)))

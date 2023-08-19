@@ -8,17 +8,17 @@
 #' @param shutdown optional function to be run when finished processing all records in a shard
 #' @param checkpointing if set to \code{TRUE} (default), \code{kinesis_consumer} will checkpoint after each \code{processRecords} call. To disable checkpointing altogether, set this to \code{FALSE}. If you want to checkpoint periodically, set this to the frequency in minutes as integer.
 #' @param updater optional list of list(s) including frequency (in minutes) and function to be run, most likely to update some objects in the parent or global namespace populated first in the \code{initialize} call. If the frequency is smaller than how long the \code{processRecords} call runs, it will be triggered once after each \code{processRecords} call
-#' @param logfile file path of the log file. To disable logging, set \code{flog.threshold} to something high
+#' @param logfile file path of the log file. To disable logging, set \code{log_threshold} to something high with the \code{AWR.Kinesis} namespace
 #' @export
 #' @note Don't run this function directly, it is to be called by the MultiLangDaemon. See the package README for more details.
-#' @references \url{https://github.com/awslabs/amazon-kinesis-client/blob/master/src/main/java/com/amazonaws/services/kinesis/multilang/package-info.java}
+#' @references \url{https://github.com/awslabs/amazon-kinesis-client/blob/v1.x/src/main/java/com/amazonaws/services/kinesis/multilang/package-info.java}
 #' @examples \dontrun{
-#' flog.threshold(FATAL)
+#' log_threshold(FATAL, namespace = 'AWR.Kinesis')
 #' AWS.Kinesis::kinesis_consumer(
-#'   initialize = function() flog.info('Loading some data'),
-#'   processRecords = function(records) flog.info('Received some records from Kinesis'),
-#'   updater = list(list(1, function() flog.info('Updating some data every minute')),
-#'                  list(1/60, function() flog.info('This is a high frequency updater call')))
+#'   initialize = function() log_info('Loading some data'),
+#'   processRecords = function(records) log_info('Received some records from Kinesis'),
+#'   updater = list(list(1, function() log_info('Updating some data every minute')),
+#'                  list(1/60, function() log_info('This is a high frequency updater call')))
 #' )
 #' }
 kinesis_consumer <- function(initialize, processRecords, shutdown,
@@ -47,15 +47,14 @@ kinesis_consumer <- function(initialize, processRecords, shutdown,
     gc_timestamp <- Sys.time()
 
     ## log to file instead of stdout (which is used for communication with the Kinesis daemon)
-    devnull <- flog.appender(appender.file(logfile))
-    flog.info('Starting R Kinesis Consumer application')
+    log_appender(appender_file(logfile))
+    log_formatter(formatter_paste)
+    log_info('Starting R Kinesis Consumer application')
 
-    ## add shard ID in each log line
-    flog.layout(function(level, msg, ...) {
+    ## custom log layout to add shard ID in each log line
+    log_layout(function(level, msg, ...) {
         timestamp <- format(Sys.time(), tz = 'UTC')
-        parsed <- lapply(list(...), function(x) ifelse(is.null(x), 'NULL', x))
-        msg <- do.call(sprintf, c(msg, parsed))
-        sprintf("%s [%s UTC] %s %s\n", names(level), timestamp, .shard$id, msg)
+        sprintf("%s [%s UTC] %s %s", attr(level, 'level'), timestamp, .shard$id, msg)
     })
 
     ## run an infinite loop reading from stdin and writing to stout
@@ -69,17 +68,17 @@ kinesis_consumer <- function(initialize, processRecords, shutdown,
 
             .shard$id <- line$shardId
 
-            flog.info('Start of initialize ')
+            log_info('Start of initialize ')
             if (!missing(initialize)) {
                 initialize()
             }
-            flog.info('End of initialize')
+            log_info('End of initialize')
 
         }
 
         ## we are about to kill this process
         if (line$action == 'shutdown') {
-            flog.info('Shutting down')
+            log_info('Shutting down')
             if (!missing(shutdown)) {
                 shutdown()
             }
@@ -92,7 +91,7 @@ kinesis_consumer <- function(initialize, processRecords, shutdown,
         if (line$action == 'processRecords') {
 
             n <- nrow(line$records)
-            flog.debug(paste('Processing', n, 'records'))
+            log_debug(paste('Processing', n, 'records'))
 
             ## nothing to do right now
             if (n == 0) next()
@@ -117,7 +116,7 @@ kinesis_consumer <- function(initialize, processRecords, shutdown,
             if (is.integer(checkpointing) && length(checkpointing) == 1 &&
                 difftime(Sys.time(), checkpoint_timestamp, units = 'mins') > checkpointing) {
 
-                flog.debug('Time to checkpoint')
+                log_debug('Time to checkpoint')
                 checkpoint(line$records[nrow(line$records), 'sequenceNumber'])
 
                 ## reset timer
@@ -129,7 +128,7 @@ kinesis_consumer <- function(initialize, processRecords, shutdown,
             if (!missing(updater)) {
                 for (ui in 1:length(updater)) {
                     if (difftime(Sys.time(), updater_timestamps[ui], units = 'mins') > updater[[ui]][[1]]) {
-                        flog.debug(paste('Time to run updater', ui))
+                        log_debug(paste('Time to run updater', ui))
                         updater[[ui]][[2]]()
                         updater_timestamps[ui] <- Sys.time()
                     }
